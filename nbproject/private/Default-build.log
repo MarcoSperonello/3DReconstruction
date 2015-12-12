@@ -1,0 +1,5 @@
+Scanning dependencies of target 3DReconstruction
+[100%] Building CXX object CMakeFiles/3DReconstruction.dir/main.cpp.o
+<command-line>:0:15: warning: missing whitespace after the macro name
+Linking CXX executable 3DReconstruction
+[100%] Built target 3DReconstruction
