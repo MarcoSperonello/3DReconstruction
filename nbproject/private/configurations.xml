@@ -22,6 +22,7 @@
         <df name="right">
         </df>
       </df>
+      <in>main benchmark.cpp</in>
       <in>main.cpp</in>
     </df>
   </logicalFolder>

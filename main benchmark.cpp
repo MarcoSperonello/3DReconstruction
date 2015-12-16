@@ -184,7 +184,9 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
   
   Mat gray;
   vector<vector<Point2f> > corners(kNumberOfImages);
-
+      struct timeval tim;  
+      gettimeofday(&tim, NULL);  
+      double t1=tim.tv_sec+(tim.tv_usec/1000000.0); 
   for (int i = 0; i < kNumberOfImages; i++) {
     cvtColor(input.at(i), gray, CV_RGB2GRAY);
 
@@ -201,13 +203,12 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
     if (pattern_found) {
 
       
-      cout << "Corners found in image #" << i + 1 << ". Polishing corners..."
-              << endl;
+      //cout << "Corners found. Polishing corners..." << endl << endl;
       cornerSubPix(gray, corners.at(i), Size(11, 11), Size(-1, -1),
                    TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 
     } else {
-      cout << "Corners not found." << endl;
+      cout << "Corners not found." << endl << endl;
       corners.pop_back();
     }
     
@@ -220,7 +221,10 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
       waitKey(0);
     }*/
   }
-  
+      
+      gettimeofday(&tim, NULL);  
+      double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+      cout<<"Corners - time elapsed: "<<t2-t1<<"s"<<endl;
   return corners;
 }
 
@@ -234,6 +238,7 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
 vector<vector<Point3f> > FindObjectPoints(vector<Mat> input, Size pattern_size,
                                           float square_size) {
   const unsigned char kNumberOfImages = input.size();
+
 
   // Computes the object points
   vector<Point3f> object_points;
@@ -263,22 +268,29 @@ void CalibrateSingleCamera(vector<vector<Point3f> >& object_points,
   // imagePoints one, and fills it with objectPoints
   object_points.resize(image_points.size(), object_points.at(0));
 
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1=tim.tv_sec+(tim.tv_usec/1000000.0); 
+  //cout<<"Calibrating camera..."<<endl;
   // Calibrates the camera
-  cout << endl << "Calibrating camera..." << endl;
   bool successful = calibrateCamera(object_points, image_points, image_size,
                                     camera_matrix, dist_coeffs, rvecs, tvecs);
-  
+  gettimeofday(&tim, NULL);  
+  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"calibrateCamera - time elapsed: "<<t2-t1<<"s"<<endl;                              
   if (!successful) {
     cout << "Couldn't calibrate camera" << endl;
     return;
   }
+
+  //cout << "Camera successfully calibrated" << endl;
 
   // Computes the average reprojection error of the calibration
   vector<float> per_view_errors;
   double rms = ComputeReprojectionErrors(object_points, image_points, rvecs,
                                          tvecs, camera_matrix, dist_coeffs,
                                          per_view_errors);
-  cout << "Camera successfully calibrated. rms: " << rms << endl;
+  //cout << "rms: " << rms << endl;
   /*for (int i = 0; i < perViewErrors.size(); i++) {
     cout << "perViewErrors for image #" << i << ": " << perViewErrors.at(i) << endl;
   }*/
@@ -313,15 +325,19 @@ void CalibrateStereoCameras(vector<Mat> left_images, vector<Mat> right_images,
   CalibrateSingleCamera(object_points, image_points_left, size,
                         camera_matrix_left, dist_coeffs_left, rvecs, tvecs);
 
-  // Calibrates the stereo camera set, calculating the reprojection error
-  cout << endl << "Calibrating stereo set..." << endl;
+  // Calibrates the stereo set, calculating the reprojection error
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
   Mat E, F;
   double rms = stereoCalibrate(object_points, image_points_left,
                                image_points_right, camera_matrix_left,
                                dist_coeffs_left, camera_matrix_right,
                                dist_coeffs_right, size, R, T, E, F);
-  cout << "Stereo set successfully calibrated. rms: " << rms << endl << endl;
-
+  //cout << "Stereo rms: " << rms << endl;
+  gettimeofday(&tim, NULL);  
+  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"stereoCalibrate - time elapsed: "<<t2-t1<<"s"<<endl; 
   // Saves the matrices in a file
   FileStorage fs("matrices.xml", FileStorage::WRITE);
   fs << "R" << R;
@@ -344,27 +360,43 @@ void UndistortAndRectify(Mat left_image, Mat right_image,
   const double kAlpha = 0;
   
   // Computes rectification transforms, projection matrices and
-  // disparity-to-depth mapping matrix for both cameras
+  // disparity-to-depth mapping matrixfor both cameras
   Size size = left_image.size();
   Mat R1, R2, P1, P2;
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1=tim.tv_sec+(tim.tv_usec/1000000.0); 
   stereoRectify(camera_matrix_left, dist_coeffs_left, camera_matrix_right,
                 dist_coeffs_right, size, R, T, R1, R2, P1, P2, Q,
                 CALIB_ZERO_DISPARITY, kAlpha);
-
+  gettimeofday(&tim, NULL);  
+  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"stereoRectify - time elapsed: "<<t2-t1<<"s"<<endl;      
   // Computes the undistortion and rectification transformation maps for
   // each camera
   Mat left_map_1, left_map_2, right_map_1, right_map_2;
+  gettimeofday(&tim, NULL);  
+  t1=tim.tv_sec+(tim.tv_usec/1000000.0); 
   initUndistortRectifyMap(camera_matrix_left, dist_coeffs_left, R1, P1, size,
                           CV_32FC1, left_map_1, left_map_2);
   initUndistortRectifyMap(camera_matrix_right, dist_coeffs_right, R2, P2, size,
-                          CV_32FC1, right_map_1, right_map_2);     
+                          CV_32FC1, right_map_1, right_map_2);
+  gettimeofday(&tim, NULL);  
+  t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"initUndistortRectifyMap - time elapsed: "<<t2-t1<<"s"<<endl;      
+
 
   // Applies the undistortion and rectification transformation maps to the
   // input images
+  gettimeofday(&tim, NULL);  
+  t1=tim.tv_sec+(tim.tv_usec/1000000.0); 
   remap(left_image, undistorted_rectified_left, left_map_1, left_map_2,
         INTER_LINEAR);
   remap(right_image, undistorted_rectified_right, right_map_1, right_map_2,
-        INTER_LINEAR);  
+        INTER_LINEAR);
+  gettimeofday(&tim, NULL);  
+  t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"remap - time elapsed: "<<t2-t1<<"s"<<endl;      
 }
 
 // Computes the disparity map from the undistorted and rectified input images,
@@ -372,7 +404,6 @@ void UndistortAndRectify(Mat left_image, Mat right_image,
 void ComputeDisparityMap(Mat undistorted_rectified_left,
                          Mat undistorted_rectified_right, Mat& disparity_8) {
   const char kImageChannels = 3;
-  
   // Converts the input images to grayscale
   Mat gray_left, gray_right, disparity;
   cvtColor(undistorted_rectified_left, gray_left, CV_BGR2GRAY);
@@ -383,19 +414,27 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
   //StereoSGBM stereo = StereoSGBM(-64,192,5);
   //StereoSGBM stereo = StereoSGBM(0,272,3,216,864,10,4,1,100,2,false);
   //StereoSGBM stereo = StereoSGBM(0, 272, 3,216,864);
-  
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1=tim.tv_sec+(tim.tv_usec/1000000.0);  
+
   StereoSGBM stereo = StereoSGBM();
   stereo.minDisparity = 0;
-  stereo.numberOfDisparities = 272;
-  //stereo.numberOfDisparities = (undistorted_rectified_left.cols/8) + 15 & -16;
+  //stereo.numberOfDisparities = 272;
+  stereo.numberOfDisparities = 288;
   stereo.SADWindowSize = 3;
   stereo.P1 = 8*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize;
   stereo.P2 = 32*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize;
+  //stereo.P1 = 600;
+  //stereo.P2 = 3600;
   stereo.disp12MaxDiff = 10;
 
   // Computes the disparity map
   stereo.operator()(gray_left, gray_right, disparity);
 
+  gettimeofday(&tim, NULL);  
+  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"Disparity - time elapsed: "<<t2-t1<<"s"<<endl;
   // Normalizes the disparity map
   normalize(disparity, disparity_8, 0, 255, CV_MINMAX, CV_8U);
 
@@ -404,17 +443,22 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
   imshow("Disparity map", disparity_8);
   waitKey(0);
 
-  char temp[200];
+  /*char temp[200];
   sprintf(temp, "../../../disparity %d,%d,%d %d,%d.png", stereo.minDisparity, stereo.numberOfDisparities, stereo.SADWindowSize, stereo.P1, stereo.P2);
-  imwrite(temp, disparity_8);
+  imwrite(temp, disparity_8);*/
 }
 
 // Computes the depth map from the disparity map and the disparity-to-depth
 // mapping matrix.
 void ComputeDepthMap(Mat disparity_8, Mat Q, Mat& depth_map) {
   // Computes the depth map
+  struct timeval tim;  
+  gettimeofday(&tim, NULL);  
+  double t1=tim.tv_sec+(tim.tv_usec/1000000.0);  
   reprojectImageTo3D(disparity_8, depth_map, Q);
-
+  gettimeofday(&tim, NULL);  
+  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+  cout<<"Depth map - time elapsed: "<<t2-t1<<"s"<<endl;
   // Shows the depth map
   namedWindow("Depth map", WINDOW_NORMAL);
   imshow("Depth map", depth_map);
@@ -424,7 +468,7 @@ void ComputeDepthMap(Mat disparity_8, Mat Q, Mat& depth_map) {
 // Reconstructs and shows the 3D scene in the form of a point cloud from an
 // undistorted rectified image and a depth map.
 void ViewReconstructedScene(Mat image, Mat depth_map) {
-  // Threshold value for XYZ coordinates of the points in the pointcloud
+  // Threshold value for x/y/z coordinates of the points in the pointcloud
   const short kThreshold = 5000;
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr output(
