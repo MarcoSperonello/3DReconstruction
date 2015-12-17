@@ -26,10 +26,6 @@ vector<vector<Point3f> > FindObjectPoints(vector <Mat>, Size, float);
 void CalibrateSingleCamera(vector<vector<Point3f> >&, vector<vector<Point2f> >,
                            Size, Mat&, Mat&, vector<Mat>&, vector<Mat>&);
 void ShowImages(vector<Mat>);
-double ComputeReprojectionErrors(const vector<vector<Point3f> >&,
-                                 const vector<vector<Point2f> >&,
-                                 const vector<Mat>&, const vector<Mat>&,
-                                 const Mat&, const Mat&, vector<float>&);
 
 int main(int argc, char** argv) {
   vector<Mat> left_calibration_images, right_calibration_images;
@@ -186,7 +182,7 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
   vector<vector<Point2f> > corners(kNumberOfImages);
 
   for (int i = 0; i < kNumberOfImages; i++) {
-    cvtColor(input.at(i), gray, CV_RGB2GRAY);
+    cvtColor(input.at(i), gray, CV_BGR2GRAY);
 
     // Determines whether there is a chessboard pattern in the image and,
     // if present, the location of the internal chessboard corners
@@ -199,26 +195,12 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
     // If a corner pattern is found, computes corner locations with
     // increased (subpixel) accuracy
     if (pattern_found) {
-
-      
-      cout << "Corners found in image #" << i + 1 << ". Polishing corners..."
-              << endl;
       cornerSubPix(gray, corners.at(i), Size(11, 11), Size(-1, -1),
                    TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 
     } else {
-      cout << "Corners not found." << endl;
       corners.pop_back();
     }
-    
-    /*if(patternFound) {
-      drawChessboardCorners(input.at(i), patternSize, Mat(corners.at(i)),
-            patternFound);
-
-      namedWindow("Corners", WINDOW_NORMAL);
-      imshow("Corners", input.at(i));
-      waitKey(0);
-    }*/
   }
   
   return corners;
@@ -263,26 +245,11 @@ void CalibrateSingleCamera(vector<vector<Point3f> >& object_points,
   // imagePoints one, and fills it with objectPoints
   object_points.resize(image_points.size(), object_points.at(0));
 
-  // Calibrates the camera
-  cout << endl << "Calibrating camera..." << endl;
-  bool successful = calibrateCamera(object_points, image_points, image_size,
+  // Calibrates the camera and returns the average reprojection error of the
+  // calibration
+  double rms = calibrateCamera(object_points, image_points, image_size,
                                     camera_matrix, dist_coeffs, rvecs, tvecs);
-  
-  if (!successful) {
-    cout << "Couldn't calibrate camera" << endl;
-    return;
-  }
-
-  // Computes the average reprojection error of the calibration
-  vector<float> per_view_errors;
-  double rms = ComputeReprojectionErrors(object_points, image_points, rvecs,
-                                         tvecs, camera_matrix, dist_coeffs,
-                                         per_view_errors);
   cout << "Camera successfully calibrated. rms: " << rms << endl;
-  /*for (int i = 0; i < perViewErrors.size(); i++) {
-    cout << "perViewErrors for image #" << i << ": " << perViewErrors.at(i) << endl;
-  }*/
-
 }
 
 // Calibrates the stereo camera pair, computing the intrinsic and distortion
@@ -294,8 +261,10 @@ void CalibrateStereoCameras(vector<Mat> left_images, vector<Mat> right_images,
                             Mat& dist_coeffs_left, Mat& dist_coeffs_right,
                             Mat& R, Mat& T) {
   // Computes image points for each camera
+  cout << "Computing corners for right camera..." << endl;
   vector<vector<Point2f> > image_points_right =
     FindImagePoints(right_images, chessboard_size);
+  cout << "Computing corners for left camera..." << endl;
   vector<vector<Point2f> > image_points_left =
     FindImagePoints(left_images, chessboard_size);
 
@@ -306,10 +275,12 @@ void CalibrateStereoCameras(vector<Mat> left_images, vector<Mat> right_images,
 
   // Calibrates the two cameras separately
   vector<Mat> rvecs, tvecs;
+  cout << endl << "Calibrating right camera..." << endl;
   CalibrateSingleCamera(object_points, image_points_right, size,
                         camera_matrix_right, dist_coeffs_right, rvecs, tvecs);
   rvecs.clear();
   tvecs.clear();
+  cout << endl << "Calibrating left camera..." << endl;
   CalibrateSingleCamera(object_points, image_points_left, size,
                         camera_matrix_left, dist_coeffs_left, rvecs, tvecs);
 
@@ -364,7 +335,8 @@ void UndistortAndRectify(Mat left_image, Mat right_image,
   remap(left_image, undistorted_rectified_left, left_map_1, left_map_2,
         INTER_LINEAR);
   remap(right_image, undistorted_rectified_right, right_map_1, right_map_2,
-        INTER_LINEAR);  
+        INTER_LINEAR);
+  
 }
 
 // Computes the disparity map from the undistorted and rectified input images,
@@ -380,21 +352,16 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
 
   // Initializes the object used to compute the stereo correspondence via the
   // semi-global block matching algorithm
-  //StereoSGBM stereo = StereoSGBM(-64,192,5);
-  //StereoSGBM stereo = StereoSGBM(0,272,3,216,864,10,4,1,100,2,false);
-  //StereoSGBM stereo = StereoSGBM(0, 272, 3,216,864);
-  
   StereoSGBM stereo = StereoSGBM();
-  stereo.minDisparity = 0;
-  stereo.numberOfDisparities = 272;
-  //stereo.numberOfDisparities = (undistorted_rectified_left.cols/8) + 15 & -16;
+  stereo.numberOfDisparities = 320;
   stereo.SADWindowSize = 3;
-  stereo.P1 = 8*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize;
-  stereo.P2 = 32*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize;
+  stereo.P1 = 8*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize*1.25;
+  stereo.P2 = 32*kImageChannels*stereo.SADWindowSize*stereo.SADWindowSize*1.25;
   stereo.disp12MaxDiff = 10;
 
   // Computes the disparity map
-  stereo.operator()(gray_left, gray_right, disparity);
+  cout << "Computing disparity map..." << endl << endl;
+  stereo(gray_left, gray_right, disparity);
 
   // Normalizes the disparity map
   normalize(disparity, disparity_8, 0, 255, CV_MINMAX, CV_8U);
@@ -403,22 +370,21 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
   namedWindow("Disparity map", WINDOW_NORMAL);
   imshow("Disparity map", disparity_8);
   waitKey(0);
-
-  char temp[200];
-  sprintf(temp, "../../../disparity %d,%d,%d %d,%d.png", stereo.minDisparity, stereo.numberOfDisparities, stereo.SADWindowSize, stereo.P1, stereo.P2);
-  imwrite(temp, disparity_8);
+  
 }
 
 // Computes the depth map from the disparity map and the disparity-to-depth
 // mapping matrix.
 void ComputeDepthMap(Mat disparity_8, Mat Q, Mat& depth_map) {
   // Computes the depth map
+  cout << "Computing depth map..." << endl << endl;
   reprojectImageTo3D(disparity_8, depth_map, Q);
 
   // Shows the depth map
   namedWindow("Depth map", WINDOW_NORMAL);
   imshow("Depth map", depth_map);
   waitKey(0);
+  
 }
 
 // Reconstructs and shows the 3D scene in the form of a point cloud from an
@@ -455,8 +421,8 @@ void ViewReconstructedScene(Mat image, Mat depth_map) {
   }
 
   // Initializes the point cloud viewer and views the point cloud
+  cout << "Visualization..." << endl;
   pcl::visualization::PCLVisualizer viewer("Reconstructed scene");
-
   viewer.setBackgroundColor(0, 0, 0);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
       output);
@@ -464,30 +430,4 @@ void ViewReconstructedScene(Mat image, Mat depth_map) {
   viewer.addCoordinateSystem(1.0, "cloud");
   viewer.initCameraParameters();
   viewer.spin();
-}
-
-// Computes and returns the average reprojection error of a calibrated camera.
-// It should be as close to zero as possible.
-double ComputeReprojectionErrors(const vector<vector<Point3f> >& object_points,
-                                 const vector<vector<Point2f> >& image_points,
-                                 const vector<Mat>& rvecs,
-                                 const vector<Mat>& tvecs,
-                                 const Mat& camera_matrix,
-                                 const Mat& dist_coeffs, 
-                                 vector<float>& per_view_errors) {
-  vector<Point2f> image_points_2;
-  int i, total_points = 0;
-  double total_err = 0, err;
-  per_view_errors.resize(object_points.size());
-  for (i = 0; i < (int) object_points.size(); ++i) {
-    projectPoints(Mat(object_points[i]), rvecs[i], tvecs[i], camera_matrix, // project
-                  dist_coeffs, image_points_2);
-    err = norm(Mat(image_points[i]), Mat(image_points_2), CV_L2); // difference
-    int n = (int) object_points[i].size();
-    per_view_errors[i] = (float) std::sqrt(err * err / n); // save for this view
-    total_err += err*err; // sum it up
-    total_points += n;
-  }
-
-  return sqrt(total_err / total_points); // calculate the arithmetical mean
 }
