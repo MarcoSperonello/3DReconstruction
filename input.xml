@@ -4,7 +4,7 @@
 	<rows>6</rows>
 	<!-- number of inner chessboard corners per column !-->
 	<columns>5</columns>
-	<!-- size of a chessboard square !-->
+	<!-- size of a chessboard square, in an arbitrary measurement unit (centimeters were used in this example) !-->
 	<square-size>12</square-size>
 	<!-- if != 0, camera intrinsics, distortion coefficients, rotational matrix
 			 and translational vector are loaded from matrices.xml. After the stereo

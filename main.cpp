@@ -7,6 +7,7 @@
  * Usage: ./[executable name] [input file path] (refer to the README for
  * additional information).
  * 
+ * File: main.cpp
  * Author: Marco A. Speronello
  * 
  */
@@ -378,13 +379,14 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
   stereo.disp12MaxDiff = 10;
 
   // Computes the disparity map
-  cout << "Computing disparity map..." << endl << endl;
+  cout << "Computing disparity map..." << endl;
   stereo(gray_left, gray_right, disparity);
 
   // Normalizes the disparity map
   normalize(disparity, disparity_8, 0, 255, CV_MINMAX, CV_8U);
 
   // Shows the disparity map
+  cout << "Visualizing disparity map. Press a key to continue." << endl << endl;
   namedWindow("Disparity map", WINDOW_NORMAL);
   imshow("Disparity map", disparity_8);
   waitKey(0);
@@ -395,10 +397,11 @@ void ComputeDisparityMap(Mat undistorted_rectified_left,
 // mapping matrix.
 void ComputeDepthMap(Mat disparity_8, Mat Q, Mat& depth_map) {
   // Computes the depth map
-  cout << "Computing depth map..." << endl << endl;
+  cout << "Computing depth map..." << endl;
   reprojectImageTo3D(disparity_8, depth_map, Q);
 
   // Shows the depth map
+  cout << "Visualizing depth map. Press a key to continue." << endl << endl;
   namedWindow("Depth map", WINDOW_NORMAL);
   imshow("Depth map", depth_map);
   waitKey(0);
@@ -439,7 +442,7 @@ void ViewReconstructedScene(Mat image, Mat depth_map) {
   }
 
   // Initializes the point cloud viewer and views the point cloud
-  cout << "Visualization..." << endl;
+  cout << "Visualization... Press Q to exit." << endl;
   pcl::visualization::PCLVisualizer viewer("Reconstructed scene");
   viewer.setBackgroundColor(0, 0, 0);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
