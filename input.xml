@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<opencv_storage>
+	<!-- number of inner chessboard corners per row !-->
+	<rows>6</rows>
+	<!-- number of inner chessboard corners per column !-->
+	<columns>5</columns>
+	<!-- size of a chessboard square !-->
+	<square-size>12</square-size>
+	<!-- if != 0, camera intrinsics, distortion coefficients, rotational matrix
+			 and translational vector are loaded from matrices.xml. After the stereo
+			 set has been calibrated, set this parameter to an integer != 0 to speed
+			 up following executions of the program !-->
+	<load-matrices>0</load-matrices>
+	<!-- path to left image of the scene to be reconstructed !-->
+	<input-image-left>
+		"left/image_0033.png"
+	</input-image-left>
+	<!-- path to right image of the scene to be reconstructed !-->
+	<input-image-right>
+		"right/image_0033.png"
+	</input-image-right>
+	<!-- paths to calibration images taken by right camera !-->
+	<calibration-images-left>
+		"left/image_0001.png"
+		"left/image_0002.png"
+		"left/image_0003.png"
+		"left/image_0004.png"
+		"left/image_0005.png"
+		"left/image_0006.png"
+		"left/image_0007.png"
+		"left/image_0008.png"
+		"left/image_0009.png"
+		"left/image_0010.png"
+		"left/image_0011.png"
+		"left/image_0012.png"
+		"left/image_0013.png"
+		"left/image_0014.png"
+		"left/image_0015.png"
+		"left/image_0016.png"
+		"left/image_0017.png"
+		"left/image_0018.png"
+		"left/image_0019.png"
+		"left/image_0020.png"
+		"left/image_0021.png"
+		"left/image_0022.png"
+		"left/image_0023.png"
+		"left/image_0024.png"
+		"left/image_0025.png"
+	</calibration-images-left>
+	<!-- paths to calibration images taken by left camera !-->
+	<calibration-images-right>
+		"right/image_0001.png"
+		"right/image_0002.png"
+		"right/image_0003.png"
+		"right/image_0004.png"
+		"right/image_0005.png"
+		"right/image_0006.png"
+		"right/image_0007.png"
+		"right/image_0008.png"
+		"right/image_0009.png"
+		"right/image_0010.png"
+		"right/image_0011.png"
+		"right/image_0012.png"
+		"right/image_0013.png"
+		"right/image_0014.png"
+		"right/image_0015.png"
+		"right/image_0016.png"
+		"right/image_0017.png"
+		"right/image_0018.png"
+		"right/image_0019.png"
+		"right/image_0020.png"
+		"right/image_0021.png"
+		"right/image_0022.png"
+		"right/image_0023.png"
+		"right/image_0024.png"
+		"right/image_0025.png"
+	</calibration-images-right>
+</opencv_storage>

@@ -1,9 +1,23 @@
+/* 
+ * This program reconstructs the 3D scene, in the form of a pointcloud, captured
+ * by two images, one for each head of a stereo camera. If calibration matrices
+ * are not already known, the program can calibrate the stereo set with the help
+ * of calibration images (for each camera) provided by the user.
+ * 
+ * Usage: ./[executable name] [input file path] (refer to the README for
+ * additional information).
+ * 
+ * Author: Marco A. Speronello
+ * 
+ */
+
 #include <iostream>
 #include <stdio.h>
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
+
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -14,6 +28,10 @@ using namespace cv;
 bool ReadInput(string, vector<Mat>&, vector<Mat>&, Mat&, Mat&, Size&, float&,
                int&);
 bool ReadMatricesFromFile(Mat&, Mat&, Mat&, Mat&, Mat&, Mat&);
+vector<vector<Point2f> > FindImagePoints(vector<Mat>, Size);
+vector<vector<Point3f> > FindObjectPoints(vector <Mat>, Size, float);
+void CalibrateSingleCamera(vector<vector<Point3f> >&, vector<vector<Point2f> >,
+                           Size, Mat&, Mat&, vector<Mat>&, vector<Mat>&);
 void CalibrateStereoCameras(vector<Mat>, vector<Mat>, Size, float, Mat&, Mat&,
                             Mat&, Mat&, Mat&, Mat&);
 void UndistortAndRectify(Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat&, Mat&,
@@ -21,11 +39,6 @@ void UndistortAndRectify(Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat&, Mat&,
 void ComputeDisparityMap(Mat, Mat, Mat&);
 void ComputeDepthMap(Mat, Mat, Mat&);
 void ViewReconstructedScene(Mat, Mat);
-vector<vector<Point2f> > FindImagePoints(vector<Mat>, Size);
-vector<vector<Point3f> > FindObjectPoints(vector <Mat>, Size, float);
-void CalibrateSingleCamera(vector<vector<Point3f> >&, vector<vector<Point2f> >,
-                           Size, Mat&, Mat&, vector<Mat>&, vector<Mat>&);
-void ShowImages(vector<Mat>);
 
 int main(int argc, char** argv) {
   vector<Mat> left_calibration_images, right_calibration_images;
@@ -57,11 +70,6 @@ int main(int argc, char** argv) {
     ReadMatricesFromFile(R, T, camera_matrix_left, camera_matrix_right,
                          dist_coeffs_left, dist_coeffs_right);
   }
-
-  /*cout << "camera_matrix_left: " << camera_matrix_left << endl;
-  cout << "camera_matrix_right: " << camera_matrix_right << endl;
-  cout << "dist_coeffs_left: " << dist_coeffs_left << endl;
-  cout << "dist_coeffs_right: " << dist_coeffs_right << endl;*/
 
   // Undistorts and rectifies the two input pictures
   Mat undistorted_rectified_left, undistorted_rectified_right, Q;
@@ -98,12 +106,32 @@ bool ReadInput(string file_name, vector<Mat>& left_calibration_images,
     cout << "Failed to open file" << endl;
     return false;
   }
-
+  
+  // Terminate execution if any of the needed information is missing
+  if(fs["rows"].empty() || fs["columns"].empty() || fs["square-size"].empty() ||
+          fs["calibration-images-left"].empty() ||
+          fs["calibration-images-right"].empty() ||
+          fs["input-image-left"].empty() || fs["input-image-right"].empty()) {
+    cout << "Syntax error in input file" << endl;
+    fs.release();
+    return false;
+  }
+  
+  if(fs["rows"].isNone() || fs["columns"].isNone() ||
+          fs["square-size"].isNone() ||
+          fs["calibration-images-left"].isNone() ||
+          fs["calibration-images-right"].isNone() ||
+          fs["input-image-left"].isNone() || fs["input-image-right"].isNone()) {
+    cout << "Missing value in input file" << endl;
+    fs.release();
+    return false;
+  }
+  
   // Number of inner chessboard corners per row/column
-  int rows, cols;
+  int rows, columns;
   fs["rows"] >> rows;
-  fs["columns"] >> cols;
-  chessboard_size = Size(cols, rows);
+  fs["columns"] >> columns;
+  chessboard_size = Size(columns, rows);
 
   // Defines whether calibration matrices should be loaded from an XML file
   fs["load-matrices"] >> load_matrices;
@@ -165,15 +193,6 @@ bool ReadMatricesFromFile(Mat& R, Mat& T,
   return true;
 }
 
-// Views each of the input pictures in a window.
-void ShowImages(vector<Mat> input) {
-  for (int i = 0; i < input.size(); i++) {
-    namedWindow("Image", WINDOW_NORMAL);
-    imshow("Image", input.at(i));
-    waitKey(0);
-  }
-}
-
 // Finds the image points in each of the calibration images.
 vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
   const unsigned char kNumberOfImages = input.size();
@@ -186,7 +205,6 @@ vector<vector<Point2f> > FindImagePoints(vector<Mat> input, Size pattern_size) {
 
     // Determines whether there is a chessboard pattern in the image and,
     // if present, the location of the internal chessboard corners
-    //cout << "Searching corners for image #" << i << endl;
     bool pattern_found = findChessboardCorners(gray, pattern_size, corners.at(i),
                                                CALIB_CB_ADAPTIVE_THRESH +
                                                CALIB_CB_NORMALIZE_IMAGE +
@@ -293,7 +311,7 @@ void CalibrateStereoCameras(vector<Mat> left_images, vector<Mat> right_images,
                                dist_coeffs_right, size, R, T, E, F);
   cout << "Stereo set successfully calibrated. rms: " << rms << endl << endl;
 
-  // Saves the matrices in a file
+  // Saves the matrices in a file (E and F are not used in this program)
   FileStorage fs("matrices.xml", FileStorage::WRITE);
   fs << "R" << R;
   fs << "T" << T;

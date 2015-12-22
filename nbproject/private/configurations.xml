@@ -24,6 +24,7 @@
       </df>
       <in>main benchmark.cpp</in>
       <in>main.cpp</in>
+      <in>main_orig.cpp</in>
     </df>
   </logicalFolder>
   <projectmakefile>build/Makefile</projectmakefile>
